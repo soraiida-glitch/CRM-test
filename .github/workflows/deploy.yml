@@ -1,0 +1,46 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: salesforce-ai-service
+  REGION: asia-northeast1
+  IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/salesforce-ai/salesforce-ai-service
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      API_SECRET_TOKEN: test-token
+      OPENAI_API_KEY: sk-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest tests/ -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+      - run: docker build -t $IMAGE .
+      - run: docker push $IMAGE
+      - run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-secrets="OPENAI_API_KEY=OPENAI_API_KEY:latest,API_SECRET_TOKEN=API_SECRET_TOKEN:latest,SALESFORCE_PASSWORD=SALESFORCE_PASSWORD:latest" \
+            --set-env-vars="ENVIRONMENT=production"
