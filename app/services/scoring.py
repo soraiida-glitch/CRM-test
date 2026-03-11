@@ -33,3 +33,17 @@ def calc_priority_score(
         score += 1
 
     return score
+
+
+def calc_pending_penalty(task_date: str, today: Optional[date] = None) -> int:
+    current_date = today or date.today()
+    days_pending = (current_date - date.fromisoformat(task_date)).days
+    if days_pending >= 7:
+        return 30
+    if days_pending >= 4:
+        return 20
+    if days_pending >= 2:
+        return 10
+    if days_pending >= 1:
+        return 5
+    return 0

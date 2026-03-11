@@ -21,17 +21,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: python -m pip install --upgrade pip
       - run: pip install -r requirements-dev.txt
-      - run: pytest tests/ -v
+      - run: python -m pytest tests/ -v
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      API_SECRET_TOKEN: ${{ secrets.API_SECRET_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SALESFORCE_USERNAME: ${{ secrets.SALESFORCE_USERNAME }}
+      SALESFORCE_PASSWORD: ${{ secrets.SALESFORCE_PASSWORD }}
+      SALESFORCE_SECURITY_TOKEN: ${{ secrets.SALESFORCE_SECURITY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       - uses: google-github-actions/setup-gcloud@v2
       - run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
       - run: docker build -t $IMAGE .
@@ -42,5 +53,4 @@ jobs:
             --region $REGION \
             --platform managed \
             --allow-unauthenticated \
-            --set-secrets="OPENAI_API_KEY=OPENAI_API_KEY:latest,API_SECRET_TOKEN=API_SECRET_TOKEN:latest,SALESFORCE_PASSWORD=SALESFORCE_PASSWORD:latest" \
-            --set-env-vars="ENVIRONMENT=production"
+            --set-env-vars="ENVIRONMENT=production,SALESFORCE_DOMAIN=login,OPENAI_API_KEY=${OPENAI_API_KEY},API_SECRET_TOKEN=${API_SECRET_TOKEN},SALESFORCE_USERNAME=${SALESFORCE_USERNAME},SALESFORCE_PASSWORD=${SALESFORCE_PASSWORD},SALESFORCE_SECURITY_TOKEN=${SALESFORCE_SECURITY_TOKEN}"
