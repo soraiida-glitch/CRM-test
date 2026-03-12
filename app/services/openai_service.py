@@ -1,3 +1,4 @@
+import base64
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -156,7 +157,10 @@ class OpenAIService:
     ) -> dict[str, str]:
         if not self._supports_responses_api:
             return {
-                "action": f"{opportunity['name']}について今日中に次回接点を設定し、{opportunity['stage']}を前進させる。",
+                "action": (
+                    f"{opportunity['name']}について本日中に次回アクションを確定し、"
+                    f"{opportunity['stage']}を前進させてください。"
+                ),
                 "action_reason": self._build_sales_action_reason(opportunity, priority_score),
             }
 
@@ -198,7 +202,7 @@ class OpenAIService:
             )
             advice = (
                 f"{opportunity['name']}は{opportunity['stage']}段階です。"
-                "今日中に次回接点を確定し、競合比較への回答を明文化してください。"
+                "競合状況と失注要因を整理し、今日中に次回接点を設定してください。"
             )
             if notes:
                 advice = f"{advice}\n\n参考にした過去の成功事例:\n{notes}"
@@ -239,16 +243,15 @@ class OpenAIService:
             "料金",
             "見積",
             "相談",
-            "検討",
             "デモ",
         )
         matched = [word for word in keywords if word in normalized]
         return {
             "should_register": bool(matched),
             "reason": (
-                "サービス導入検討や料金問い合わせが含まれており購買意図が明確"
+                "サービス導入の検討や料金確認が含まれており、購買意図が明確です。"
                 if matched
-                else "購買意図を示す明確な表現が不足"
+                else "購買意図が明確ではないため、即時のリード登録対象ではありません。"
             ),
         }
 
@@ -295,21 +298,36 @@ class OpenAIService:
     def _generate_slide_section_fallback(self, kind: str, payload: dict[str, Any]) -> Any:
         if kind == "issues":
             return {
-                "issue_1": f"{payload['issues']}ことが商談機会の損失につながっている点。",
-                "issue_2": f"{payload['description']}という現行運用が拡張性を阻害している点。",
+                "issue_1": f"{payload['issues']}ことが商談機会の損失につながっています。",
+                "issue_2": f"{payload['description']}環境では手作業負荷が高く、対応速度の改善が必要です。",
             }
         if kind == "use_cases":
             return {
-                "use_case_1": f"{payload['strategy']}を用いて初動対応を高速化する。",
-                "use_case_2": f"{payload['description']}の現場運用に合わせて対応品質を標準化する。",
+                "use_case_1": f"{payload['strategy']}を用いて初動対応を自動化します。",
+                "use_case_2": f"{payload['description']}環境に合わせて運用しやすいフローを構築します。",
             }
         if kind == "questions":
             return {
-                "needs_and_issues": ["最も時間を要している業務は何ですか。", "改善したいKPIは何ですか。"],
-                "data_details": ["元データはどこに保管されていますか。", "再利用できる履歴データはありますか。"],
-                "system_infrastructure": ["連携必須の業務システムは何ですか。", "監査や権限制御の要件はありますか。"],
-                "organization_structure": ["導入後の運用責任者は誰ですか。", "意思決定に関与する部門はどこですか。"],
-                "budget_and_timeline": ["希望導入時期はいつですか。", "予算承認者は誰ですか。"],
+                "needs_and_issues": [
+                    "現在もっとも対応時間がかかっている業務はどこですか。",
+                    "改善したいKPIは何ですか。",
+                ],
+                "data_details": [
+                    "活用可能な過去データはどこに保存されていますか。",
+                    "個人情報を含むデータの取り扱い条件はありますか。",
+                ],
+                "system_infrastructure": [
+                    "連携対象のシステムやメール基盤は何ですか。",
+                    "認証やネットワークの制約はありますか。",
+                ],
+                "organization_structure": [
+                    "導入後の運用担当者は誰ですか。",
+                    "意思決定に関与する部門はどこですか。",
+                ],
+                "budget_and_timeline": [
+                    "想定予算と稟議の時期はいつですか。",
+                    "いつまでに導入判断を完了したいですか。",
+                ],
             }
         if kind == "insight":
             target_process = (
@@ -319,17 +337,17 @@ class OpenAIService:
             )
             return {
                 "target_process": target_process,
-                "point_1": "データ形式のばらつきを先に整理する必要があります。",
-                "point_2": "既存システムと安全に連携できる認証設計が必要です。",
+                "point_1": "既存データの形式差異を吸収できる設計が必要です。",
+                "point_2": "既存システムと安全に接続できる運用要件の整理が重要です。",
                 "full_sentence": (
-                    f"{target_process}は、データ整備とセキュアな連携設計を両立して初めて安定運用できます。"
+                    f"{target_process}は、既存データへの対応と安全なシステム連携を前提に設計する必要があります。"
                 ),
             }
         if kind == "case_type":
             source = f"{payload['name']} {payload['strategy']} {payload['description']}".lower()
-            if "chat" in source or "pdf" in source:
+            if "chat" in source or "pdf" in source or "document" in source:
                 return 1
-            if "email" in source or "mail" in source or "メール" in source:
+            if "email" in source or "mail" in source:
                 return 2
             if "business card" in source or "name card" in source or "名刺" in source:
                 return 3
@@ -339,9 +357,9 @@ class OpenAIService:
     def _build_sales_action_reason(self, opportunity: dict[str, Any], priority_score: int) -> str:
         reasons = [f"優先度スコア {priority_score}"]
         if not opportunity.get("decision_maker_contacted"):
-            reasons.append("決裁者接触が未完了")
+            reasons.append("決裁者への接触が未完了")
         if not opportunity.get("next_step"):
-            reasons.append("次アクション未設定")
+            reasons.append("次回アクションが未設定")
         return " / ".join(reasons)
 
 

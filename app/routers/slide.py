@@ -30,7 +30,7 @@ async def generate_slide_content(payload: SlideRequest) -> SlideResponse:
     )
     return SlideResponse(
         meta=SlideMeta(
-            company_name=payload.name.split()[0],
+            company_name=_extract_company_name(payload.name),
             run_month=datetime.now().strftime("%B %Y"),
         ),
         issues=issues,
@@ -59,3 +59,12 @@ async def _build_insight(service, payload: SlideRequest) -> SlideInsight:
 
 async def _classify_case_type(service, payload: SlideRequest) -> int:
     return await service.generate_slide_section("case_type", payload.model_dump())
+
+
+def _extract_company_name(name: str) -> str:
+    tokens = name.split()
+    if not tokens:
+        return ""
+    if tokens[0].startswith("株式会社") and len(tokens[0]) == len("株式会社") and len(tokens) > 1:
+        return f"{tokens[0]} {tokens[1]}"
+    return tokens[0]

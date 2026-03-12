@@ -71,7 +71,7 @@ async def prioritize_sales(payload: PrioritizeRequest) -> PrioritizeResponse:
 def score_sales_activity(payload: ScoreRequest) -> ScoreResponse:
     actual_names = {task.opportunity_name for task in payload.actual_tasks}
     completed_rows = [
-        CompletedRow(row_number=item.row_number, mark="done")
+        CompletedRow(row_number=item.row_number, mark="")
         for item in payload.recommended_actions
         if item.opportunity_name in actual_names
     ]
@@ -90,28 +90,28 @@ def score_sales_activity(payload: ScoreRequest) -> ScoreResponse:
 
     good_points = []
     if payload.actual_tasks:
-        good_points.append("Recorded completed sales tasks")
+        good_points.append("営業活動の記録が残されていた")
     if aligned_count:
-        good_points.append("Matched recommended actions to actual work")
+        good_points.append("推奨アクションに沿った実績が確認できた")
 
     improvement_points = []
     if aligned_count < recommended_count:
-        improvement_points.append("一部の推奨アクションが未実施")
+        improvement_points.append("未実施の推奨アクションが残っています")
     if penalty_total:
-        improvement_points.append("放置タスクによる減点が発生")
+        improvement_points.append("放置タスクによる減点が発生しています")
 
     status = "達成" if aligned_count == recommended_count else "一部未達"
     summary = (
-        f"推奨アクション {recommended_count} 件中 {aligned_count} 件を実行。"
-        f"減点反映後の最終スコアは {final_score} 点。"
+        f"推奨アクションの{aligned_count}/{recommended_count}件を実行しました。"
+        f"放置タスク減点後の最終スコアは{final_score}点です。"
     )
 
     return ScoreResponse(
         user_name=payload.user_name,
         total_score=total_score,
         summary=summary,
-        good_points=good_points or ["活動データを受領し評価対象として処理"],
-        improvement_points=improvement_points or ["大きな改善点は検出されませんでした"],
+        good_points=good_points or ["営業活動の基本記録は確認できました"],
+        improvement_points=improvement_points or ["大きな改善点は確認されませんでした"],
         action_alignment_status=status,
         completed_rows=completed_rows,
         penalty=PenaltySummary(

@@ -69,3 +69,5 @@ def test_score_sales_applies_penalty(client, auth_headers):
     body = res.json()
     assert body["penalty"]["pending_count"] == 1
     assert body["penalty"]["final_score"] <= body["total_score"]
+    assert body["completed_rows"][0]["mark"] == ""
+    assert body["action_alignment_status"] == "達成"

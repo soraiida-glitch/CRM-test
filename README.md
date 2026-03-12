@@ -1,6 +1,6 @@
 # salesforce-ai-service
 
-Salesforce AI automation backend API for Cloud Run. n8n remains the trigger and output layer, while this service owns the AI, scoring, and data transformation logic.
+Salesforce AI automation backend API for Cloud Run. n8n remains the trigger and output layer, while this service owns AI, scoring, vector search, and data transformation logic.
 
 ## Local setup
 
@@ -21,7 +21,7 @@ python -m venv .venv
 
 ## Environment variables
 
-Use `.env` locally. In production, this repository currently injects values from GitHub Secrets into Cloud Run environment variables directly.
+Use `.env` locally. In production, the application reads secret values from Google Secret Manager when `ENVIRONMENT=production`.
 
 ```env
 OPENAI_API_KEY=
@@ -32,6 +32,12 @@ SALESFORCE_DOMAIN=login
 API_SECRET_TOKEN=
 LOG_LEVEL=INFO
 ENVIRONMENT=local
+GCP_PROJECT_ID=
+OPENAI_API_KEY_SECRET_NAME=OPENAI_API_KEY
+SALESFORCE_USERNAME_SECRET_NAME=SALESFORCE_USERNAME
+SALESFORCE_PASSWORD_SECRET_NAME=SALESFORCE_PASSWORD
+SALESFORCE_SECURITY_TOKEN_SECRET_NAME=SALESFORCE_SECURITY_TOKEN
+API_SECRET_TOKEN_SECRET_NAME=API_SECRET_TOKEN
 ```
 
 ## Endpoints
@@ -48,34 +54,48 @@ ENVIRONMENT=local
 | POST | /suggestion/advice | RAG-based advice |
 | POST | /slide/generate-content | Slide content generation |
 
-## GitHub Secrets
+## Deployment
 
-Required for Cloud Run deployment:
+Pushes to `main` trigger GitHub Actions deployment to Cloud Run after test success.
+
+The deploy job uses Workload Identity Federation, pushes an image to Artifact Registry, and deploys Cloud Run in `asia-northeast1`.
+
+Before the first deploy, prepare the GCP side:
+
+```text
+Enable APIs:
+- run.googleapis.com
+- artifactregistry.googleapis.com
+- secretmanager.googleapis.com
+- iamcredentials.googleapis.com
+
+Create Artifact Registry repository:
+- asia-northeast1 / salesforce-ai
+
+Grant the deploy service account:
+- roles/run.admin
+- roles/artifactregistry.writer
+- roles/iam.serviceAccountUser
+
+Grant the Cloud Run runtime service account:
+- roles/secretmanager.secretAccessor
+```
+
+## Required GitHub Secrets
 
 ```text
 GCP_PROJECT_ID
 GCP_WORKLOAD_IDENTITY_PROVIDER
 GCP_SERVICE_ACCOUNT_EMAIL
+GCP_RUNTIME_SERVICE_ACCOUNT_EMAIL
+```
+
+## Required Google Secret Manager Secrets
+
+```text
 API_SECRET_TOKEN
 OPENAI_API_KEY
 SALESFORCE_USERNAME
 SALESFORCE_PASSWORD
 SALESFORCE_SECURITY_TOKEN
 ```
-
-For Workload Identity Federation:
-
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`: fully qualified provider resource name
-  Example: `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider`
-- `GCP_SERVICE_ACCOUNT_EMAIL`: service account email used by GitHub Actions
-  Example: `github-actions-deploy@your-project-id.iam.gserviceaccount.com`
-
-Current production fallback:
-
-- Secret Manager is not required for this workflow.
-- GitHub Actions reads the repository secrets and sets them as Cloud Run environment variables during deploy.
-- This is simpler to operate, but less strict than Secret Manager. Migrate later if billing and permissions become available.
-
-## Deploy
-
-Pushes to `main` trigger GitHub Actions deployment to Cloud Run after test success.

@@ -19,6 +19,14 @@ def embed_case(payload: EmbedRequest) -> EmbedResponse:
         {
             "opportunity_id": item.opportunity_id,
             "document": item.log,
+            "search_text": " ".join(
+                [
+                    item.family,
+                    f"amount:{item.amount}",
+                    f"income:{item.income}",
+                    item.log,
+                ]
+            ),
             "metadata": {
                 "amount": item.amount,
                 "income": item.income,
