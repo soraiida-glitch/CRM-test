@@ -58,23 +58,18 @@ API_SECRET_TOKEN_SECRET_NAME=API_SECRET_TOKEN
 
 Pushes to `main` trigger GitHub Actions deployment to Cloud Run after test success.
 
-The deploy job uses Workload Identity Federation, pushes an image to Artifact Registry, and deploys Cloud Run in `asia-northeast1`.
+The deploy job uses Workload Identity Federation, pushes an image to Docker Hub, and deploys Cloud Run in `asia-northeast1`.
 
 Before the first deploy, prepare the GCP side:
 
 ```text
 Enable APIs:
 - run.googleapis.com
-- artifactregistry.googleapis.com
 - secretmanager.googleapis.com
 - iamcredentials.googleapis.com
 
-Create Artifact Registry repository:
-- asia-northeast1 / salesforce-ai
-
 Grant the deploy service account:
 - roles/run.admin
-- roles/artifactregistry.writer
 - roles/iam.serviceAccountUser
 
 Grant the Cloud Run runtime service account:
@@ -88,6 +83,8 @@ GCP_PROJECT_ID
 GCP_WORKLOAD_IDENTITY_PROVIDER
 GCP_SERVICE_ACCOUNT_EMAIL
 GCP_RUNTIME_SERVICE_ACCOUNT_EMAIL
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
 ```
 
 ## Required Google Secret Manager Secrets

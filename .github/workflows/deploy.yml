@@ -8,7 +8,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: salesforce-ai-service
   REGION: asia-northeast1
-  IMAGE: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/salesforce-ai/salesforce-ai-service
+  IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/salesforce-ai-service:latest
 
 jobs:
   test:
@@ -38,7 +38,7 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       - uses: google-github-actions/setup-gcloud@v2
-      - run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+      - run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
       - run: docker build -t $IMAGE .
       - run: docker push $IMAGE
       - run: |
