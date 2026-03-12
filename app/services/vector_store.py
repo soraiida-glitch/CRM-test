@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Any
 
-from openai import OpenAI
+from openai import AuthenticationError, OpenAI
 
 from app.config import settings
 
@@ -15,7 +15,11 @@ _STORE: dict[str, dict[str, Any]] = {}
 
 class VectorStoreService:
     def __init__(self) -> None:
-        self._embedding_client = OpenAI(api_key=settings.openai_api_key) if settings.has_openai else None
+        self._embedding_client = (
+            OpenAI(api_key=settings.openai_api_key)
+            if settings.has_openai and not settings.openai_api_key.startswith("sk-test")
+            else None
+        )
         self._client = chromadb.Client() if chromadb else None
         self._collection = (
             self._client.get_or_create_collection(name="salesforce_success_cases")
@@ -67,10 +71,13 @@ class VectorStoreService:
     def _embed_documents(self, documents: list[str]) -> list[list[float]] | None:
         if not self._embedding_client or not documents:
             return None
-        response = self._embedding_client.embeddings.create(
-            model="text-embedding-3-small",
-            input=documents,
-        )
+        try:
+            response = self._embedding_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=documents,
+            )
+        except AuthenticationError:
+            return None
         return [item.embedding for item in response.data]
 
 
